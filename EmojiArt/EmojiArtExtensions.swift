@@ -19,6 +19,15 @@ extension Collection where Element: Identifiable {
 
 extension URL {
     var imageURL: URL {
+        // check to see if this is a local file url
+        // if so, be sure to look in this instance's Application Support Directory
+        if isFileURL {
+            var url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            url = url?.appendingPathComponent(self.lastPathComponent)
+            if url != nil {
+                return url!
+            }
+        }
         // check to see if there is an embedded imgurl reference
         for query in query?.components(separatedBy: "&") ?? [] {
             let queryComponents = query.components(separatedBy: "=")
@@ -112,5 +121,44 @@ extension CGSize {
     }
     static func /(lhs: Self, rhs: CGFloat) -> CGSize {
         CGSize(width: lhs.width / rhs, height: lhs.height / rhs)
+    }
+}
+
+extension String {
+    func uniqued<StringCollection>(withRespectTo otherStrings: StringCollection) -> String where StringCollection: Collection, StringCollection.Element == String {
+        var unique = self
+        while otherStrings.contains(unique) {
+            unique = unique.incremented
+        }
+        return unique
+    }
+    
+    var incremented: String {
+        let prefix = String(self.reversed().drop(while: { $0.isNumber }).reversed())
+        if let number = Int(self.dropFirst(prefix.count)) {
+            return "\(prefix)\(number+1)"
+        } else {
+            return "\(self) 1"
+        }
+    }
+}
+
+extension UIImage {
+    func storeInFileSystem(name: String = "\(Date().timeIntervalSince1970)") -> URL? {
+        var url = try? FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        url = url?.appendingPathComponent(name)
+        if url != nil {
+            do {
+                try self.jpegData(compressionQuality: 1.0)?.write(to: url!)
+            } catch {
+                url = nil
+            }
+        }
+        return url
     }
 }

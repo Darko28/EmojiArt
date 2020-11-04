@@ -50,6 +50,24 @@ class EmojiArtDocument: ObservableObject, Hashable, Identifiable {
         }
         fetchBackgroundImageData()
     }
+    
+    var url: URL? { didSet { self.save(self.emojiArt) } }
+    
+    init(url: URL) {
+        self.id = UUID()
+        self.url = url
+        self.emojiArt = EmojiArt(json: try? Data(contentsOf: url)) ?? EmojiArt()
+        fetchBackgroundImageData()
+        autosaveCancellable = $emojiArt.sink { emojiArt in
+            self.save(emojiArt)
+        }
+    }
+    
+    private func save(_ emojiArt: EmojiArt) {
+        if url != nil {
+            try? emojiArt.json?.write(to: url!)
+        }
+    }
 
     @Published private(set) var backgroundImage: UIImage?
     
@@ -90,7 +108,7 @@ class EmojiArtDocument: ObservableObject, Hashable, Identifiable {
     private var fetchImageCancellable: AnyCancellable?
     private func fetchBackgroundImageData() {
         backgroundImage = nil
-        if let url = self.emojiArt.backgroundURL {
+        if let url = self.emojiArt.backgroundURL?.imageURL {
 //            DispatchQueue.global(qos: .userInitiated).async {
 //                if let imageData = try? Data(contentsOf: url) {
 //                    DispatchQueue.main.async {
